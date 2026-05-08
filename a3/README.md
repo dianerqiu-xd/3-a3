@@ -25,6 +25,16 @@ http://localhost:8501
 
 第一次进入 GloVe 标签页时会下载 `glove-twitter-25`。如果网络不可用，程序会自动切换到内置的小型演示向量，保证页面不崩溃；部署到 Streamlit Cloud 后通常可以正常下载预训练模型。
 
+## Streamlit Cloud 重要设置
+
+因为 `gensim / scipy / scikit-learn` 对 Python 版本比较敏感，部署时请在 `Advanced settings` 里选择 Python 3.11。
+
+如果已经创建过应用并且仍显示 `Error installing requirements`，只点 `Reboot` 可能不会改变 Python 版本。请删除这个 Streamlit app 后重新创建，重新创建时设置：
+
+- Branch：当前 GitHub 分支
+- Main file path：`a3/streamlit_app.py`
+- Python version：`3.11`
+
 ## 上传 GitHub
 
 ```bash
