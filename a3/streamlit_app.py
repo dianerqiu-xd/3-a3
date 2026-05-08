@@ -73,7 +73,10 @@ def cached_fasttext(corpus: str, window: int, vector_size: int, epochs: int):
 
 
 @st.cache_resource(show_spinner=False)
-def load_glove_vectors():
+def load_glove_vectors(use_pretrained: bool):
+    if not use_pretrained:
+        return TinyAnalogyVectors(), "内置演示向量（页面默认模式，避免云端首次启动时下载超时）"
+
     try:
         import gensim.downloader as api
 
@@ -177,7 +180,12 @@ with tab2:
 
 with tab3:
     st.subheader("预训练 GloVe：词类比与词义相似度")
-    vectors, vector_name = load_glove_vectors()
+    use_pretrained_glove = st.toggle(
+        "尝试加载真实 glove-twitter-25 预训练模型",
+        value=False,
+        help="Streamlit Cloud 首次下载可能较慢；默认用内置小型向量保证页面稳定打开。",
+    )
+    vectors, vector_name = load_glove_vectors(use_pretrained_glove)
     st.caption(f"当前向量来源：{vector_name}")
 
     col_ana, col_sim = st.columns(2)

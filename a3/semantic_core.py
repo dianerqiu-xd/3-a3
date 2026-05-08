@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 import re
 from dataclasses import dataclass
+from collections import Counter, defaultdict
 from typing import Iterable
 
 import numpy as np
@@ -154,18 +155,21 @@ def train_word2vec(
     if not sentences:
         raise ValueError("No valid tokens found for Word2Vec training.")
 
-    from gensim.models import Word2Vec
+    try:
+        from gensim.models import Word2Vec
 
-    return Word2Vec(
-        sentences=sentences,
-        vector_size=vector_size,
-        window=window,
-        min_count=1,
-        workers=1,
-        sg=sg,
-        epochs=epochs,
-        seed=seed,
-    )
+        return Word2Vec(
+            sentences=sentences,
+            vector_size=vector_size,
+            window=window,
+            min_count=1,
+            workers=1,
+            sg=sg,
+            epochs=epochs,
+            seed=seed,
+        )
+    except Exception:
+        return SimpleEmbeddingModel(sentences, window=window, vector_size=vector_size, seed=seed, mode="word2vec")
 
 
 def train_fasttext(
@@ -178,20 +182,126 @@ def train_fasttext(
     if not sentences:
         raise ValueError("No valid tokens found for FastText training.")
 
-    from gensim.models import FastText
+    try:
+        from gensim.models import FastText
 
-    return FastText(
-        sentences=sentences,
-        vector_size=vector_size,
-        window=window,
-        min_count=1,
-        workers=1,
-        sg=1,
-        min_n=3,
-        max_n=5,
-        epochs=epochs,
-        seed=seed,
-    )
+        return FastText(
+            sentences=sentences,
+            vector_size=vector_size,
+            window=window,
+            min_count=1,
+            workers=1,
+            sg=1,
+            min_n=3,
+            max_n=5,
+            epochs=epochs,
+            seed=seed,
+        )
+    except Exception:
+        return SimpleEmbeddingModel(sentences, window=window, vector_size=vector_size, seed=seed, mode="fasttext")
+
+
+class SimpleKeyedVectors:
+    """Tiny co-occurrence embedding fallback for cloud environments without gensim."""
+
+    def __init__(self, sentences: list[list[str]], window: int, vector_size: int, seed: int, mode: str) -> None:
+        self.mode = mode
+        self.vector_size = vector_size
+        vocab = sorted({token for sentence in sentences for token in sentence})
+        self.key_to_index = {word: idx for idx, word in enumerate(vocab)}
+        rng = np.random.default_rng(seed)
+        random_basis = {word: rng.normal(0, 1, vector_size) for word in vocab}
+        vectors: dict[str, np.ndarray] = {word: np.zeros(vector_size, dtype=float) for word in vocab}
+
+        for sentence in sentences:
+            for idx, word in enumerate(sentence):
+                left = max(0, idx - window)
+                right = min(len(sentence), idx + window + 1)
+                for ctx in sentence[left:idx] + sentence[idx + 1 : right]:
+                    vectors[word] += random_basis[ctx]
+
+        for word, vector in vectors.items():
+            norm = np.linalg.norm(vector)
+            if norm == 0:
+                vector = random_basis[word]
+                norm = np.linalg.norm(vector)
+            vectors[word] = vector / max(norm, 1e-12)
+
+        self.vectors = vectors
+        self.ngram_vectors = self._build_ngram_vectors(vectors) if mode == "fasttext" else {}
+
+    def _build_ngram_vectors(self, vectors: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
+        buckets: dict[str, list[np.ndarray]] = defaultdict(list)
+        for word, vector in vectors.items():
+            for ngram in char_ngrams(word):
+                buckets[ngram].append(vector)
+        return {ngram: np.mean(values, axis=0) for ngram, values in buckets.items()}
+
+    def __contains__(self, word: str) -> bool:
+        return word in self.key_to_index
+
+    def __getitem__(self, word: str) -> np.ndarray:
+        word = word.lower().strip()
+        if word in self.vectors:
+            return self.vectors[word]
+        if self.mode != "fasttext":
+            raise KeyError(word)
+
+        pieces = [self.ngram_vectors[ngram] for ngram in char_ngrams(word) if ngram in self.ngram_vectors]
+        if pieces:
+            vector = np.mean(pieces, axis=0)
+            norm = np.linalg.norm(vector)
+            return vector / max(norm, 1e-12)
+        raise KeyError(word)
+
+    def most_similar(self, positive: Iterable = (), negative: Iterable = (), topn: int = 5):
+        if isinstance(positive, str):
+            positive = [positive]
+        else:
+            positive = list(positive or [])
+        if isinstance(negative, str):
+            negative = [negative]
+        else:
+            negative = list(negative or [])
+        query = np.zeros(self.vector_size, dtype=float)
+        excluded = set()
+        for item in positive:
+            if isinstance(item, str):
+                excluded.add(item)
+                query += self[item]
+            else:
+                query += np.asarray(item, dtype=float)
+        for item in negative:
+            if isinstance(item, str):
+                excluded.add(item)
+                query -= self[item]
+            else:
+                query -= np.asarray(item, dtype=float)
+
+        scored = []
+        for word, vector in self.vectors.items():
+            if word in excluded:
+                continue
+            score = cosine_similarity(query, vector)
+            if score is not None:
+                scored.append((word, score))
+        return sorted(scored, key=lambda row: row[1], reverse=True)[:topn]
+
+    def similarity(self, word_a: str, word_b: str) -> float:
+        return float(cosine_similarity(self[word_a], self[word_b]))
+
+
+class SimpleEmbeddingModel:
+    def __init__(self, sentences: list[list[str]], window: int, vector_size: int, seed: int, mode: str) -> None:
+        self.wv = SimpleKeyedVectors(sentences, window=window, vector_size=vector_size, seed=seed, mode=mode)
+
+
+def char_ngrams(word: str, min_n: int = 3, max_n: int = 5) -> list[str]:
+    wrapped = f"<{word.lower()}>"
+    grams = []
+    for n in range(min_n, max_n + 1):
+        grams.extend(wrapped[idx : idx + n] for idx in range(max(0, len(wrapped) - n + 1)))
+    return grams
 
 
 def top_similar(model, word: str, topn: int = 5) -> pd.DataFrame:
