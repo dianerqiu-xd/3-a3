@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+from collections import Counter, defaultdict
 import math
 import re
 from dataclasses import dataclass
-from collections import Counter, defaultdict
 from typing import Iterable
 
 import numpy as np
@@ -46,6 +46,40 @@ longer sentences.
 
 TOKEN_RE = re.compile(r"[A-Za-z][A-Za-z']+")
 
+STOP_WORDS = {
+    "a",
+    "an",
+    "and",
+    "are",
+    "as",
+    "at",
+    "be",
+    "because",
+    "by",
+    "can",
+    "from",
+    "if",
+    "in",
+    "into",
+    "is",
+    "it",
+    "of",
+    "on",
+    "or",
+    "such",
+    "that",
+    "the",
+    "their",
+    "them",
+    "they",
+    "this",
+    "to",
+    "use",
+    "with",
+    "when",
+    "while",
+}
+
 
 @dataclass(frozen=True)
 class TfidfResult:
@@ -83,24 +117,41 @@ def tokenized_corpus(text: str) -> list[list[str]]:
     return [tokens for tokens in (tokenize_words(doc) for doc in normalized_documents(text)) if tokens]
 
 
-def compute_tfidf(text: str, max_features: int = 80) -> TfidfResult:
-    from sklearn.feature_extraction.text import TfidfVectorizer
-
+def build_count_matrix(text: str, max_features: int = 80) -> tuple[list[str], np.ndarray, list[str]]:
     docs = normalized_documents(text)
     if len(docs) < 2:
-        raise ValueError("Please provide at least two English sentences for TF-IDF analysis.")
+        raise ValueError("Please provide at least two English sentences.")
 
-    vectorizer = TfidfVectorizer(
-        stop_words="english",
-        token_pattern=r"(?u)\b[a-zA-Z][a-zA-Z']+\b",
-        max_features=max_features,
-    )
-    matrix = vectorizer.fit_transform(docs)
-    terms = vectorizer.get_feature_names_out()
-    tfidf_df = pd.DataFrame(matrix.toarray(), columns=terms)
+    doc_tokens = [[token for token in tokenize_words(doc) if token not in STOP_WORDS] for doc in docs]
+    vocab_counter = Counter(token for tokens in doc_tokens for token in tokens)
+    terms = [term for term, _ in vocab_counter.most_common(max_features)]
+    if not terms:
+        raise ValueError("No valid vocabulary found.")
+
+    term_index = {term: idx for idx, term in enumerate(terms)}
+    counts = np.zeros((len(docs), len(terms)), dtype=float)
+    for doc_idx, tokens in enumerate(doc_tokens):
+        for token in tokens:
+            if token in term_index:
+                counts[doc_idx, term_index[token]] += 1
+    return docs, counts, terms
+
+
+def count_to_tfidf(counts: np.ndarray) -> np.ndarray:
+    row_sums = counts.sum(axis=1, keepdims=True)
+    tf = np.divide(counts, row_sums, out=np.zeros_like(counts), where=row_sums != 0)
+    doc_freq = np.count_nonzero(counts > 0, axis=0)
+    idf = np.log((1 + counts.shape[0]) / (1 + doc_freq)) + 1
+    return tf * idf
+
+
+def compute_tfidf(text: str, max_features: int = 80) -> TfidfResult:
+    docs, counts, terms = build_count_matrix(text, max_features=max_features)
+    tfidf = count_to_tfidf(counts)
+    tfidf_df = pd.DataFrame(tfidf, columns=terms)
     tfidf_df.index = [f"Doc {idx + 1}" for idx in range(len(docs))]
 
-    weights = np.asarray(matrix.mean(axis=0)).ravel()
+    weights = tfidf.mean(axis=0)
     top_idx = np.argsort(weights)[::-1][:5]
     top_keywords = pd.DataFrame(
         {
@@ -116,28 +167,16 @@ def compute_lsa_coordinates(
     matrix_type: str = "tfidf",
     max_features: int = 60,
 ) -> pd.DataFrame:
-    from sklearn.decomposition import TruncatedSVD
-    from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
-
-    docs = normalized_documents(text)
-    if len(docs) < 2:
-        raise ValueError("LSA needs at least two sentence documents.")
-
-    vectorizer_cls = TfidfVectorizer if matrix_type == "tfidf" else CountVectorizer
-    vectorizer = vectorizer_cls(
-        stop_words="english",
-        token_pattern=r"(?u)\b[a-zA-Z][a-zA-Z']+\b",
-        max_features=max_features,
-    )
-    doc_term = vectorizer.fit_transform(docs)
-    terms = vectorizer.get_feature_names_out()
+    _, counts, terms = build_count_matrix(text, max_features=max_features)
+    doc_term = count_to_tfidf(counts) if matrix_type == "tfidf" else counts
     term_doc = doc_term.T
 
     if term_doc.shape[0] < 2 or term_doc.shape[1] < 1:
         raise ValueError("Not enough vocabulary for LSA visualization.")
 
-    n_components = min(2, term_doc.shape[1])
-    coords = TruncatedSVD(n_components=n_components, random_state=42).fit_transform(term_doc)
+    u, singular_values, _ = np.linalg.svd(term_doc, full_matrices=False)
+    n_components = min(2, u.shape[1])
+    coords = u[:, :n_components] * singular_values[:n_components]
     if coords.shape[1] == 1:
         coords = np.column_stack([coords[:, 0], np.zeros(coords.shape[0])])
 
