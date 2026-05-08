@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="680" viewBox="0 0 1200 680">
+  <rect width="1200" height="680" fill="#f8fafc"/>
+  <rect x="40" y="36" width="1120" height="84" rx="8" fill="#ffffff" stroke="#dbe3ef"/>
+  <text x="72" y="86" font-family="Arial" font-size="30" font-weight="700" fill="#0f172a">A3 Semantic Analysis Lab</text>
+  <rect x="40" y="146" width="350" height="210" rx="8" fill="#ffffff" stroke="#dbe3ef"/>
+  <text x="66" y="188" font-family="Arial" font-size="22" font-weight="700" fill="#111827">Top 5 TF-IDF Keywords</text>
+  <text x="74" y="235" font-family="Arial" font-size="19" fill="#2563eb">computer  0.184</text>
+  <text x="74" y="275" font-family="Arial" font-size="19" fill="#2563eb">model     0.165</text>
+  <text x="74" y="315" font-family="Arial" font-size="19" fill="#2563eb">data      0.152</text>
+  <rect x="430" y="146" width="730" height="470" rx="8" fill="#ffffff" stroke="#dbe3ef"/>
+  <text x="466" y="188" font-family="Arial" font-size="22" font-weight="700" fill="#111827">LSA 2D Vocabulary Map</text>
+  <line x1="510" y1="540" x2="1100" y2="540" stroke="#94a3b8"/>
+  <line x1="610" y1="230" x2="610" y2="580" stroke="#94a3b8"/>
+  <circle cx="750" cy="340" r="9" fill="#2563eb"/><text x="765" y="346" font-family="Arial" font-size="16">computer</text>
+  <circle cx="785" cy="370" r="9" fill="#2563eb"/><text x="800" y="376" font-family="Arial" font-size="16">model</text>
+  <circle cx="710" cy="390" r="9" fill="#2563eb"/><text x="725" y="396" font-family="Arial" font-size="16">data</text>
+  <circle cx="940" cy="455" r="9" fill="#16a34a"/><text x="955" y="461" font-family="Arial" font-size="16">music</text>
+  <circle cx="965" cy="425" r="9" fill="#16a34a"/><text x="980" y="431" font-family="Arial" font-size="16">melody</text>
+</svg>

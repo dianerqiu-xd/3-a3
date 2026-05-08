@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>A3 语义表示与对比分析系统实验报告</title>
+  <style>
+    @page { size: A4; margin: 18mm; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+      color: #172033;
+      line-height: 1.72;
+      font-size: 14px;
+    }
+    h1 { font-size: 26px; margin: 0 0 14px; }
+    h2 {
+      font-size: 18px;
+      margin: 22px 0 8px;
+      border-bottom: 1px solid #dbe3ef;
+      padding-bottom: 4px;
+    }
+    h3 { font-size: 15px; margin: 16px 0 6px; }
+    p { margin: 6px 0; }
+    .meta {
+      background: #f6f8fb;
+      border: 1px solid #dbe3ef;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 14px;
+    }
+    pre {
+      background: #0f172a;
+      color: #e5e7eb;
+      border-radius: 8px;
+      padding: 12px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+    code { font-family: "SFMono-Regular", Consolas, monospace; }
+    img {
+      width: 100%;
+      border: 1px solid #dbe3ef;
+      border-radius: 8px;
+      margin: 8px 0 14px;
+    }
+    .small { color: #607087; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>A3 语义表示与对比分析系统实验报告</h1>
+  <div class="meta">
+    <p><strong>应用类型：</strong>Python + Streamlit Web 应用</p>
+    <p><strong>项目路径：</strong><code>a3/</code></p>
+    <p><strong>入口文件：</strong><code>a3/streamlit_app.py</code></p>
+    <p><strong>部署方式：</strong>上传 GitHub 后，在 Streamlit Community Cloud 中将 Main file path 设置为 <code>a3/streamlit_app.py</code>。</p>
+  </div>
+
+  <h2>一、Vibe Coding Prompt 记录</h2>
+  <h3>Prompt 1：构建四标签页语义分析平台</h3>
+  <p>请使用 Python Streamlit 开发一个英文语义表示实验平台，包含 TF-IDF/LSA、Word2Vec、GloVe 和 FastText/Sent2Vec 四个模块。页面提供英文语料输入，并让四个模块共用同一份语料。</p>
+  <p><strong>AI 输出与修改：</strong>创建 <code>streamlit_app.py</code> 和 <code>semantic_core.py</code>，使用 Streamlit 标签页组织四个实验模块，并准备约 500-1000 词的英文示例语料。</p>
+
+  <h3>Prompt 2：实现传统统计模型</h3>
+  <p>在第一个标签页中，按句子切分英文语料，使用 scikit-learn 计算 TF-IDF 矩阵，展示权重最高的 5 个关键词，并使用 TruncatedSVD 将词汇降到二维空间进行可视化。</p>
+  <p><strong>AI 输出与修改：</strong>使用 <code>TfidfVectorizer</code>、<code>CountVectorizer</code> 和 <code>TruncatedSVD</code> 完成矩阵计算与 LSA 坐标生成，页面展示关键词表、TF-IDF 矩阵和二维散点图。</p>
+
+  <h3>Prompt 3：实现 Word2Vec 对比</h3>
+  <p>在第二个标签页中，使用 gensim 训练 Word2Vec，提供 CBOW 与 Skip-Gram 单选切换，提供 window 滑动条，输入一个单词后输出 Top 5 相似词。</p>
+  <p><strong>AI 输出与修改：</strong>使用 <code>gensim.models.Word2Vec</code>，通过 <code>sg=0</code> 和 <code>sg=1</code> 切换架构，并用 <code>most_similar</code> 输出余弦相似度最高的词。</p>
+
+  <h3>Prompt 4：实现 GloVe 类比与相似度</h3>
+  <p>在第三个标签页中，使用 <code>gensim.downloader</code> 加载 <code>glove-twitter-25</code>，实现 A - B + C 词类比计算器，并补充两个单词的语义相似度分数。</p>
+  <p><strong>AI 输出与修改：</strong>封装 GloVe 加载逻辑，提供 <code>king - man + woman</code>、<code>paris - france + china</code> 等例子。为了避免网络失败导致页面崩溃，加入内置小型演示向量作为备用。</p>
+
+  <h3>Prompt 5：实现 FastText 和 Sent2Vec</h3>
+  <p>在第四个标签页中，训练 FastText，测试拼写错误词 <code>computeer</code> 的 OOV 情况；同时对比 Word2Vec 的 KeyError。再输入两个长句，平均所有词向量，计算句向量余弦相似度。</p>
+  <p><strong>AI 输出与修改：</strong>使用 <code>gensim.models.FastText</code> 的字符 n-gram 特征生成 OOV 向量，并使用 average pooling 模拟 Sent2Vec。</p>
+
+  <h2>二、核心代码摘录</h2>
+  <h3>TF-IDF 与关键词</h3>
+  <pre><code>vectorizer = TfidfVectorizer(stop_words="english")
+matrix = vectorizer.fit_transform(docs)
+weights = np.asarray(matrix.mean(axis=0)).ravel()
+top_idx = np.argsort(weights)[::-1][:5]</code></pre>
+
+  <h3>Word2Vec 架构切换</h3>
+  <pre><code>model = Word2Vec(
+    sentences=sentences,
+    vector_size=vector_size,
+    window=window,
+    min_count=1,
+    sg=0,  # CBOW；改为 1 即 Skip-Gram
+)</code></pre>
+
+  <h3>GloVe 词类比</h3>
+  <pre><code>rows = keyed_vectors.most_similar(
+    positive=[A, C],
+    negative=[B],
+    topn=5,
+)</code></pre>
+
+  <h3>Sent2Vec 平均池化</h3>
+  <pre><code>vectors = [keyed_vectors[token] for token in tokenize_words(sentence)]
+sentence_vector = np.mean(vectors, axis=0)
+similarity = cosine(sentence_vector_a, sentence_vector_b)</code></pre>
+
+  <h2>三、系统运行截图</h2>
+  <p>本报告下方图片为报告配套界面示意图。正式提交前，可运行 <code>streamlit run streamlit_app.py</code> 后替换为浏览器真实截图。</p>
+  <h3>截图 1：TF-IDF / LSA</h3>
+  <img src="assets/tfidf_lsa.svg" alt="TF-IDF 与 LSA 界面截图">
+  <h3>截图 2：Word2Vec 相似度查询</h3>
+  <img src="assets/word2vec.svg" alt="Word2Vec 界面截图">
+  <h3>截图 3：GloVe 词类比</h3>
+  <img src="assets/glove.svg" alt="GloVe 词类比界面截图">
+  <h3>截图 4：FastText OOV 与 Sent2Vec</h3>
+  <img src="assets/fasttext.svg" alt="FastText 与 Sent2Vec 界面截图">
+
+  <h2>四、实验观察与总结</h2>
+  <p>TF-IDF 能突出小语料中更有区分度的关键词；LSA 通过对词-文档矩阵进行 SVD 分解，把高维词汇空间压缩到二维，适合观察词语在共现结构中的相对位置。</p>
+  <p>Word2Vec 的 CBOW 与 Skip-Gram 架构使用不同预测目标，因此在小语料实时训练时，相同查询词的 Top 5 相似词会有差异。Skip-Gram 往往更关注目标词对上下文的预测，CBOW 则更平滑。</p>
+  <p>GloVe 的词类比任务展示了词向量空间中的线性关系。经典例子 <code>king - man + woman</code> 预期接近 <code>queen</code>；国家与首都类比可以进一步观察全局共现统计是否捕捉了地理语义。</p>
+  <p>FastText 利用字符 n-gram 表示词，因此面对 <code>computeer</code> 这种未登录或拼写错误词时，仍可组合子词向量生成可用表示。平均池化的 Sent2Vec 实现简单，但可以快速得到句子的全局语义近似。</p>
+  <p class="small">依赖文件：<code>requirements.txt</code>；入口文件：<code>streamlit_app.py</code>；核心代码：<code>semantic_core.py</code>。</p>
+</body>
+</html>

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="680" viewBox="0 0 1200 680">
+  <rect width="1200" height="680" fill="#f8fafc"/>
+  <rect x="50" y="44" width="1100" height="80" rx="8" fill="#ffffff" stroke="#dbe3ef"/>
+  <text x="84" y="94" font-family="Arial" font-size="30" font-weight="700" fill="#0f172a">GloVe Word Analogy</text>
+  <rect x="70" y="160" width="500" height="420" rx="8" fill="#ffffff" stroke="#dbe3ef"/>
+  <text x="104" y="212" font-family="Arial" font-size="22" font-weight="700" fill="#111827">A - B + C</text>
+  <text x="112" y="282" font-family="Arial" font-size="24" fill="#334155">king - man + woman</text>
+  <rect x="108" y="332" width="390" height="64" rx="8" fill="#eff6ff" stroke="#bfdbfe"/>
+  <text x="140" y="374" font-family="Arial" font-size="25" font-weight="700" fill="#2563eb">Result: queen</text>
+  <text x="112" y="458" font-family="Arial" font-size="18" fill="#475569">Example: paris - france + china → beijing</text>
+  <rect x="630" y="160" width="500" height="420" rx="8" fill="#ffffff" stroke="#dbe3ef"/>
+  <text x="664" y="212" font-family="Arial" font-size="22" font-weight="700" fill="#111827">Word Similarity</text>
+  <text x="704" y="306" font-family="Arial" font-size="24" fill="#334155">computer ↔ algorithm</text>
+  <text x="704" y="378" font-family="Arial" font-size="42" font-weight="700" fill="#16a34a">0.73</text>
+  <text x="704" y="442" font-family="Arial" font-size="18" fill="#475569">Cosine similarity in vector space</text>
+</svg>
